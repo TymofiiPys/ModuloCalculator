@@ -1,30 +1,4 @@
-/*
- * The MIT License (MIT)
- * 
- * Copyright (c) 2014 Krzysztof Narkiewicz <krzysztof.narkiewicz@ezaquarii.com>
- * 
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- * 
- */
+
 
 %skeleton "lalr1.cc" /* -*- C++ -*- */
 %require "3.0"
@@ -34,7 +8,7 @@
 %define api.token.constructor
 %define api.value.type variant
 %define parse.assert
-%define api.namespace { EzAquarii }
+%define api.namespace { MathBase }
 %code requires
 {
     #include <iostream>
@@ -43,9 +17,7 @@
     #include <stdint.h>
     #include "command.h"
 
-    using namespace std;
-
-    namespace EzAquarii {
+    namespace MathBase {
         class Scanner;
         class Interpreter;
     }
@@ -59,13 +31,14 @@
 %code top
 {
     #include <iostream>
+    #include <sstream>
     #include "scanner.h"
     #include "parser.hpp"
     #include "interpreter.h"
     #include "location.hh"
     
     // yylex() arguments are defined in parser.y
-    static EzAquarii::Parser::symbol_type yylex(EzAquarii::Scanner &scanner, EzAquarii::Interpreter &driver) {
+    static MathBase::Parser::symbol_type yylex(MathBase::Scanner &scanner, MathBase::Interpreter &driver) {
         return scanner.get_next_token();
     }
     
@@ -73,13 +46,13 @@
     // x and y are same as in above static function
     // #define yylex(x, y) scanner.get_next_token()
     
-    using namespace EzAquarii;
+    using namespace MathBase;
 }
 
-%lex-param { EzAquarii::Scanner &scanner }
-%lex-param { EzAquarii::Interpreter &driver }
-%parse-param { EzAquarii::Scanner &scanner }
-%parse-param { EzAquarii::Interpreter &driver }
+%lex-param { MathBase::Scanner &scanner }
+%lex-param { MathBase::Interpreter &driver }
+%parse-param { MathBase::Scanner &scanner }
+%parse-param { MathBase::Interpreter &driver }
 %locations
 %define parse.trace
 %define parse.error verbose
@@ -87,88 +60,126 @@
 %define api.token.prefix {TOKEN_}
 
 %token END 0 "end of file"
-%token <std::string> STRING  "string";
-%token <uint64_t> NUMBER "number";
-%token LEFTPAR "leftpar";
-%token RIGHTPAR "rightpar";
-%token SEMICOLON "semicolon";
-%token COMMA "comma";
+%token <std::string> NUMBER "number";
+%token <std::string> IDENTIFIER "identifier";
+%token POWER "^"
+%token PLUS "+"
+%token MINUS "-"
+%token MULTIPLY "*"
+%token DIVIDE "/"
+%token MODULO "%"
+%token COMMA ","
+%token EQUALS "="
+%token LT "<"
+%token GT ">"
+%token LE "<="
+%token GE ">="
+%token LEFT_BRACKET "("
+%token RIGHT_BRACKET ")"
+%token NEW_LINE "ln"
+%token ERRPAIR "errpair"
 
-%type< EzAquarii::Command > command;
-%type< std::vector<uint64_t> > arguments;
+%left EQUALS LT GT LE GE
+%left COMMA
+%left PLUS MINUS
+%left MULTIPLY DIVIDE MODULO
+%right POWER
 
-%start program
+%nonassoc UMINUS UPLUS
+%type<std::vector<MathBase::AST*>> S;
+%type<std::vector<MathBase::AST*>> R;
+%type<MathBase::ASTNode*> E;
+%type<MathBase::ASTNode*> D;
+%type<MathBase::ASTNode*> V;
+%type<MathBase::ASTNode*> C;
+%type<MathBase::ValueNode*> P;
+%type<MathBase::FunctionNode*> L;
+%type<std::vector<MathBase::ASTNode*>> A;
+%type<std::vector<MathBase::ASTNode*>> B;
+
+%start S
 
 %%
+S :
+{
+    $$ = {}; driver.clear();
+}
+| R  
+{ 
+  $$ = $1; 
+  for (AST* ast : $1) { driver.addAST(ast); } 
+}
+;
 
-program :   {
-                cout << "*** RUN ***" << endl;
-                cout << "Type function with list of parmeters. Parameter list can be empty" << endl
-                     << "or contain positive integers only. Examples: " << endl
-                     << " * function()" << endl
-                     << " * function(1,2,3)" << endl
-                     << "Terminate listing with ; to see parsed AST" << endl
-                     << "Terminate parser with Ctrl-D" << endl;
-                
-                cout << endl << "prompt> ";
-                
-                driver.clear();
-            }
-        | program command
-            {
-                const Command &cmd = $2;
-                cout << "command parsed, updating AST" << endl;
-                driver.addCommand(cmd);
-                cout << endl << "prompt> ";
-            }
-        | program SEMICOLON
-            {
-                cout << "*** STOP RUN ***" << endl;
-                cout << driver.str() << endl;
-            }
-        ;
+R : 
+D  {
+   $$ = std::vector<AST*>();
+   AST* ast = new AST($1);
+   $$.emplace_back(ast); 
+}
+| R "ln" D    { $$ = $1; AST* ast = new AST($3);  $$.emplace_back(ast); }
+D : E { $$ = $1; }
+  ;
+E : 
+    E "+" E        { $$ = new OperationNode($1, "+", $3, driver.transformLocation(@2)); driver.allocate($$); }
+  | E "-" E       { $$ = new OperationNode($1, "-", $3, driver.transformLocation(@2)); driver.allocate($$); }
+  | E "*" E    { $$ = new OperationNode($1, "*", $3, driver.transformLocation(@2)); driver.allocate($$); }
+  | E "/" E         {
+                        $$ = new OperationNode($1, "-", $3, driver.transformLocation(@2)); driver.allocate($$);
+                    }
+  | E "%" E         {
+                        $$ = new OperationNode($1, "%", $3, driver.transformLocation(@2)); driver.allocate($$);
+                    }
+  | E "^" E       {  
+                        $$ = new OperationNode($1, "^", $3, driver.transformLocation(@2)); driver.allocate($$);
+                    }
+  | E "=" E { $$ = new ComparisonNode($1, "=", $3, driver.transformLocation(@2)); driver.allocate($$); }
+  | E "<" E { $$ = new ComparisonNode($1, "<", $3, driver.transformLocation(@2)); driver.allocate($$); }
+  | E ">" E { $$ = new ComparisonNode($1, ">", $3, driver.transformLocation(@2)); driver.allocate($$); }
+  | E "<=" E { $$ = new ComparisonNode($1, "<=", $3, driver.transformLocation(@2)); driver.allocate($$); }
+  | E ">=" E { $$ = new ComparisonNode($1, ">=", $3, driver.transformLocation(@2)); driver.allocate($$); }
+  | V { $$ = $1; }
+  ;
+
+V : MINUS C        %prec UMINUS   { $$ = new UnaryNode("-", $2, driver.transformLocation(@1)); }
+  | PLUS C         %prec UPLUS    { $$ = $2; }
+  | C { $$ = $1; }
+  ; 
+C : P { $$ = $1; }
+  | L { $$ = $1; }
+  | LEFT_BRACKET E RIGHT_BRACKET  { $$ = $2; }
+;
 
 
-command : STRING LEFTPAR RIGHTPAR
-        {
-            string &id = $1;
-            cout << "ID: " << id << endl;
-            $$ = Command(id);
-        }
-    | STRING LEFTPAR arguments RIGHTPAR
-        {
-            string &id = $1;
-            const std::vector<uint64_t> &args = $3;
-            cout << "function: " << id << ", " << args.size() << endl;
-            $$ = Command(id, args);
-        }
-    ;
+A : B                              {  $$ = $1; }
+  | /* empty */                    {  $$ = std::vector<ASTNode*>(); }
+  ;
 
-arguments : NUMBER
-        {
-            uint64_t number = $1;
-            $$ = std::vector<uint64_t>();
-            $$.push_back(number);
-            cout << "first argument: " << number << endl;
-        }
-    | arguments COMMA NUMBER
-        {
-            uint64_t number = $3;
-            std::vector<uint64_t> &args = $1;
-            args.push_back(number);
-            $$ = args;
-            cout << "next argument: " << number << ", arg list size = " << args.size() << endl;
-        }
-    ;
-    
+B : E                              { $$ = std::vector<ASTNode*>(); $$.emplace_back($1); }
+  | B COMMA E                      { $$ = $1; $$.emplace_back($3); }
+  ;
+
+P : IDENTIFIER                     { 
+    $$ = new VariableNode($1, driver.locationStruct()); driver.allocate($$);
+                                   }
+  | NUMBER                         { 
+    $$ = new NumberNode($1, driver.locationStruct()); driver.allocate($$);
+                                   }
+  ;
+
+L : IDENTIFIER LEFT_BRACKET A RIGHT_BRACKET {
+    $$ = new FunctionNode($1, $3, driver.transformLocation(@1)); driver.allocate($$);
+}
+;
 %%
 
-// Bison expects us to provide implementation - otherwise linker complains
-void EzAquarii::Parser::error(const location &loc , const std::string &message) {
-        
-        // Location should be initialized inside scanner action, but is not in this example.
-        // Let's grab location directly from driver class.
-	// cout << "Error: " << message << endl << "Location: " << loc << endl;
-	
-        cout << "Error: " << message << endl << "Error location: " << driver.location() << endl;
+void MathBase::Parser::error(const location &loc , const std::string &message) {
+    std::stringstream ss;
+    for (MathBase::ASTNode* node : driver.get_allocated_nodes()) {
+        delete node;
+    }
+    driver.clear();
+    if (!driver.hasError()) {
+      driver.setError("parse", message);
+    }
 }

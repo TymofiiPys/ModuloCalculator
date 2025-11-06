@@ -1,80 +1,102 @@
 
 %{
 	#include <iostream>
+    #include <sstream>
 	#include <cstdlib>
 	#include "scanner.h"
 	#include "interpreter.h"
 	#include "parser.hpp"
 	#include "location.hh"
 
-	using namespace std;
-
 	// Original yyterminate() macro returns int. Since we're using Bison 3 variants
 	// as tokens, we must redefine it to change type from `int` to `Parser::semantic_type`
-	#define yyterminate() EzAquarii::Parser::make_END(EzAquarii::location());
+	#define yyterminate() MathBase::Parser::make_END(MathBase::location());
 
 	// This will track current scanner location.
 	// Action is called when length of the token is known.
-	#define YY_USER_ACTION m_driver.increaseLocation(yyleng);
+	#define YY_USER_ACTION m_driver.increaseLocation(yytext);
 	
-	// !!!WARNING!!!
-	// Location API is used, but the location is not initialized, 'cause I'm lazy. When making
-	// a token with make_{something} method you can pass detailed token location. Current location
-	// is accessible with m_driver.location() method. All puzzle elements are there - just
-	// pass location value in every action code block below. I'm going to waste more time writing
-	// this excuse than putting this boilerplate below...
-	//
-	// Location class can be found in location.hh and posistion.hh files. It's just a bit too much
-	// boilerplate for this small example. Bummer.
 %}
 
 %option nodefault
 %option noyywrap
 %option c++
 %option never-interactive
+%option nounistd
 %option yyclass="Scanner"
-%option prefix="EzAquarii_"
+%option prefix="MathBase_"
+
+
+alpha       [a-zA-Z]
+number      [0]|[1-9][0-9]*
+identifier  {alpha}+
 
 %%
 
 
-[a-z]+      { 
-                cout << "Scanner: identifier [" << yytext << "]" << endl;
-                return EzAquarii::Parser::make_STRING(yytext, EzAquarii::location( /* put location data here if you want */ )); 
+{identifier}     { 
+                return MathBase::Parser::make_IDENTIFIER(yytext, m_driver.getLocation()); 
+                }
+[\t ]       {
+                /* Ignore whitespaces */
+            }
+\n+         {
+                return MathBase::Parser::make_NEW_LINE(m_driver.getLocation());
+            }
+
+{number}    {
+                return MathBase::Parser::make_NUMBER(yytext, m_driver.getLocation());
             }
             
 \(          {
-                cout << "Scanner: '('" << endl;
-                return EzAquarii::Parser::make_LEFTPAR(EzAquarii::location());
+                return MathBase::Parser::make_LEFT_BRACKET(m_driver.getLocation());
             }
             
 \)          { 
-                cout << "Scanner: ')'" << endl;
-                return EzAquarii::Parser::make_RIGHTPAR(EzAquarii::location());
-            }
-            
-;           {
-                cout << "Scanner: ';'" << endl;
-                return EzAquarii::Parser::make_SEMICOLON(EzAquarii::location());
-            }
-            
+                return MathBase::Parser::make_RIGHT_BRACKET(m_driver.getLocation());
+            } 
+                 
 ,           {
-                cout << "Scanner: ','" << endl;
-                return EzAquarii::Parser::make_COMMA(EzAquarii::location());
+                return MathBase::Parser::make_COMMA(m_driver.getLocation());
             }
-            
-[\n\t ]     {
-                //cout << "Scanner: whitechar (ignored)" << endl;
+\*\*|\^     {
+                return MathBase::Parser::make_POWER(m_driver.getLocation());
+            }
+"+"         {
+                return MathBase::Parser::make_PLUS(m_driver.getLocation());
+            }
+"-"         {
+                return MathBase::Parser::make_MINUS(m_driver.getLocation());
+            }
+"*"         {
+                return MathBase::Parser::make_MULTIPLY(m_driver.getLocation());
+            }
+"/"         {
+                return MathBase::Parser::make_DIVIDE(m_driver.getLocation());
+            }
+"%"         {
+                return MathBase::Parser::make_MODULO(m_driver.getLocation());
+            }
+"="         {
+                return MathBase::Parser::make_EQUALS(m_driver.getLocation());
+            }
+"<"         {
+                return MathBase::Parser::make_LT(m_driver.getLocation());
+            }
+">"         {
+                return MathBase::Parser::make_GT(m_driver.getLocation());
+            }
+"<="         {
+                return MathBase::Parser::make_LE(m_driver.getLocation());
+            }
+">="        {
+                return MathBase::Parser::make_GE(m_driver.getLocation());
             }
 
-[1-9][0-9]* {
-                cout << "Scanner: decimal number: " << yytext << endl;
-                uint64_t number = strtoull(yytext, 0, 10);
-                return EzAquarii::Parser::make_NUMBER(number, EzAquarii::location());
-            }
-
-.           { 
-                cout << "Scanner: unknown character [" << yytext << "]" << endl; 
+.           {
+                 std::stringstream ss;
+                 ss << "Error: Unknown characters: " << yytext << ".";
+                 m_driver.setError("scan", ss.str());
             }
             
 <<EOF>>     { return yyterminate(); }
