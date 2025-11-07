@@ -2,9 +2,43 @@
 #include "doctest.h"
 #include <iostream>
 
+#include "MathBase/parse/scanner.h"
+#include "MathBase/parse/parser.hpp"
+#include "MathBase/parse/interpreter.h"
+#include <fstream>
+#include <sstream>
+#include <string>
+
+using namespace MathBase;
 TEST_CASE("Generic test") {
 
 	CHECK(10 + 15 != 35);
 	CHECK(10 + 25 == 35);
 
+}
+
+std::istringstream loadFile(const std::string& name, bool& success) {
+    std::ifstream file(name);
+    if (!file.is_open()) {
+        success = false;
+        return std::istringstream("");
+    }
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    success = true;
+    return std::istringstream(content);
+}
+
+int main(int argc, char** argv) {
+    bool isOpened = false;
+    std::string filename = "input.txt";
+    std::istringstream stream = loadFile(filename, isOpened);
+    if (!isOpened) {
+        std::cout << "Cannot open " << filename << std::endl;
+    }
+    Interpreter i;
+    i.switchInputStream(&stream);
+    i.configLocation(filename, true, true);
+    int res = i.parse();
+    std::cout << "Parse complete. Result = " << res << std::endl << i.str() << std::endl;
+    return res;
 }
