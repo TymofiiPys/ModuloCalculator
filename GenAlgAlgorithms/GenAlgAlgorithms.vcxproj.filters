@@ -72,6 +72,12 @@
     <ClInclude Include="MathBase\merr\errpick.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MathBase\CalculationOfSquareRoot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MathBase\Exponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test.cpp">
@@ -108,6 +114,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MathBase\merr\errpick.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MathBase\CalculationOfSquareRoot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
