@@ -90,6 +90,9 @@
     <ClInclude Include="MathBase\AST_Core.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MathBase\AST_Operation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test.cpp">
@@ -141,6 +144,9 @@
       <Filter>Header Files</Filter>
     </ClCompile>
     <ClCompile Include="MathBase\AST_GenericVisitor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MathBase\AST_Operation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

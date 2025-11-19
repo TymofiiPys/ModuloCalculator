@@ -129,6 +129,7 @@
   <ItemGroup>
     <ClInclude Include="doctest.h" />
     <ClInclude Include="MathBase\AST_Core.h" />
+    <ClInclude Include="MathBase\AST_Operation.h" />
     <ClInclude Include="MathBase\CalculationOfSquareRoot.h" />
     <ClInclude Include="MathBase\Euler.h" />
     <ClInclude Include="MathBase\Exponent.h" />
@@ -157,6 +158,7 @@
     <ClCompile Include="MathBase\AST_Core.cpp" />
     <ClCompile Include="MathBase\AST_GenericVisitor.cpp" />
     <ClCompile Include="MathBase\AST_Generic_Visitor.h" />
+    <ClCompile Include="MathBase\AST_Operation.cpp" />
     <ClCompile Include="MathBase\CalculationOfSquareRoot.cpp" />
     <ClCompile Include="MathBase\Euler.cpp" />
     <ClCompile Include="MathBase\GCD.cpp" />
